@@ -12,7 +12,7 @@
 // =================
 
 // I/O routines
-void save(std::ofstream &fsave, particle_t *parts, int num_parts, double size)
+void save(std::ofstream &fsave, person_t *parts, int num_parts, double size)
 {
     static bool first = true;
 
@@ -31,36 +31,29 @@ void save(std::ofstream &fsave, particle_t *parts, int num_parts, double size)
 }
 
 // Particle Initialization
-void init_particles(particle_t *parts, int num_parts, double size, int part_seed)
+void init_particles(int num_people, int part_seed, std::queue<double> *entry)
 {
     std::random_device rd;
     std::mt19937 gen(part_seed ? part_seed : rd());
 
-    int sx = (int)ceil(sqrt((double)num_parts));
-    int sy = (num_parts + sx - 1) / sx;
-
-    std::vector<int> shuffle(num_parts);
+    std::vector<int> shuffle(num_people);
     for (int i = 0; i < shuffle.size(); ++i)
     {
         shuffle[i] = i;
     }
-
-    for (int i = 0; i < num_parts; ++i)
+    double time = 0;
+    for (int i = 0; i < num_people; ++i)
     {
         // Make sure particles are not spatially sorted
-        std::uniform_int_distribution<int> rand_int(0, num_parts - i - 1);
+        std::uniform_int_distribution<int> rand_int(0, num_people - i - 1);
         int j = rand_int(gen);
         int k = shuffle[j];
-        shuffle[j] = shuffle[num_parts - i - 1];
+        shuffle[j] = shuffle[num_people - i - 1];
 
         // Distribute particles evenly to ensure proper spacing
-        parts[i].x = size * (1. + (k % sx)) / (1 + sx);
-        parts[i].y = size * (1. + (k / sx)) / (1 + sy);
-
-        // Assign random velocities within a bound
-        std::uniform_real_distribution<float> rand_real(-1.0, 1.0);
-        parts[i].vx = rand_real(gen);
-        parts[i].vy = rand_real(gen);
+        std::exponential_distribution<> rand_time(10);
+        time += rand_time(gen);
+        entry->push(time);
     }
 }
 
@@ -125,25 +118,27 @@ int main(int argc, char **argv)
     // Initialize Particles
     int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
-    double size = sqrt(density * num_parts);
+    int end_time = 1000;
 
-    particle_t *parts = new particle_t[num_parts];
+    std::queue<double> *entry;
 
-    init_particles(parts, num_parts, size, part_seed);
+    init_particles(num_parts, part_seed, entry);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-    init_simulation(parts, num_parts, size);
+    init_simulation(num_parts, entry);
+
+    double next_time = 0;
 
 #ifdef _OPENMP
 #pragma omp parallel default(shared)
 #endif
     {
-        for (int step = 0; step < nsteps; ++step)
+        while (next_time < end_time)
         // for (int step = 0; step < 1; ++step)
         {
-            simulate_one_step(parts, num_parts, size);
+            double next_time = simulate_one_step(num_parts, entry);
 
             // Save state if necessary
 #ifdef _OPENMP

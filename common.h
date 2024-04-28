@@ -3,28 +3,27 @@
 
 #include <iostream>
 #include <queue>
+#include <random>
 
 // Program Constants
-#define nsteps 1000
-#define savefreq 10
-#define density 0.0005
-#define mass 0.01
-#define cutoff 0.01
-#define min_r (cutoff / 100)
-#define dt 0.0005
+#define entry_rate = 1;
 
 // Particle Data Structure
 typedef struct person_t
 {
+    int id;
     double arrival_time;
+    double end_time;
 } person_t;
 
 typedef struct queue_t
 {
-    double process_rate;
     int processing_heads;
-    bool is_normal;
     std::queue<person_t> queue;
+    double next_time;
+    bool is_norm;
+    std::normal_distribution<> norm_dist;
+    std::exponential_distribution<> exp_dist;
 } queue_t;
 
 typedef struct airport_t
@@ -40,7 +39,7 @@ typedef struct airport_t
 } airport_t;
 
 // Simulation routine
-void init_simulation(person_t *parts, int num_people, double end_time);
-void simulate_one_step(person_t *parts, int num_people, double end_time);
+void init_simulation(int num_people, std::queue<double> entry);
+double simulate_one_step(int num_people, std::queue<double> entry);
 
 #endif
