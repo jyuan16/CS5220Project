@@ -1,6 +1,9 @@
 #ifndef __CS267_COMMON_H__
 #define __CS267_COMMON_H__
 
+#include <iostream>
+#include <queue>
+
 // Program Constants
 #define nsteps 1000
 #define savefreq 10
@@ -13,7 +16,7 @@
 // Particle Data Structure
 typedef struct person_t
 {
-    double arrival_time
+    double arrival_time;
 } person_t;
 
 typedef struct queue_t
@@ -21,7 +24,7 @@ typedef struct queue_t
     double process_rate;
     int processing_heads;
     bool is_normal;
-    queue<person_t> queue;
+    std::queue<person_t> queue;
 } queue_t;
 
 typedef struct airport_t
