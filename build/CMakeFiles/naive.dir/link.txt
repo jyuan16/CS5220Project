@@ -1,1 +1,0 @@
-/opt/cray/pe/craype/2.7.30/bin/CC -O3 -DNDEBUG CMakeFiles/naive.dir/main.cpp.o CMakeFiles/naive.dir/naive.cpp.o -o naive 
