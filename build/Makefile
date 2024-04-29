@@ -117,152 +117,65 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named benchmark
+# Target rules for targets named naive
 
 # Build rule for target.
-benchmark: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 benchmark
-.PHONY : benchmark
+naive: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 naive
+.PHONY : naive
 
 # fast build rule for target.
-benchmark/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark.dir/build.make CMakeFiles/benchmark.dir/build
-.PHONY : benchmark/fast
+naive/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/build
+.PHONY : naive/fast
 
-#=============================================================================
-# Target rules for targets named benchmark-naive
-
-# Build rule for target.
-benchmark-naive: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 benchmark-naive
-.PHONY : benchmark-naive
-
-# fast build rule for target.
-benchmark-naive/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-naive.dir/build.make CMakeFiles/benchmark-naive.dir/build
-.PHONY : benchmark-naive/fast
-
-#=============================================================================
-# Target rules for targets named benchmark-blocked
-
-# Build rule for target.
-benchmark-blocked: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 benchmark-blocked
-.PHONY : benchmark-blocked
-
-# fast build rule for target.
-benchmark-blocked/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blocked.dir/build.make CMakeFiles/benchmark-blocked.dir/build
-.PHONY : benchmark-blocked/fast
-
-#=============================================================================
-# Target rules for targets named benchmark-blas
-
-# Build rule for target.
-benchmark-blas: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 benchmark-blas
-.PHONY : benchmark-blas
-
-# fast build rule for target.
-benchmark-blas/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blas.dir/build.make CMakeFiles/benchmark-blas.dir/build
-.PHONY : benchmark-blas/fast
-
-benchmark.o: benchmark.cpp.o
-.PHONY : benchmark.o
+main.o: main.cpp.o
+.PHONY : main.o
 
 # target to build an object file
-benchmark.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark.dir/build.make CMakeFiles/benchmark.dir/benchmark.cpp.o
-.PHONY : benchmark.cpp.o
+main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/main.cpp.o
+.PHONY : main.cpp.o
 
-benchmark.i: benchmark.cpp.i
-.PHONY : benchmark.i
+main.i: main.cpp.i
+.PHONY : main.i
 
 # target to preprocess a source file
-benchmark.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark.dir/build.make CMakeFiles/benchmark.dir/benchmark.cpp.i
-.PHONY : benchmark.cpp.i
+main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/main.cpp.i
+.PHONY : main.cpp.i
 
-benchmark.s: benchmark.cpp.s
-.PHONY : benchmark.s
+main.s: main.cpp.s
+.PHONY : main.s
 
 # target to generate assembly for a file
-benchmark.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark.dir/build.make CMakeFiles/benchmark.dir/benchmark.cpp.s
-.PHONY : benchmark.cpp.s
+main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/main.cpp.s
+.PHONY : main.cpp.s
 
-dgemm-blas.o: dgemm-blas.c.o
-.PHONY : dgemm-blas.o
+naive.o: naive.cpp.o
+.PHONY : naive.o
 
 # target to build an object file
-dgemm-blas.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blas.dir/build.make CMakeFiles/benchmark-blas.dir/dgemm-blas.c.o
-.PHONY : dgemm-blas.c.o
+naive.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/naive.cpp.o
+.PHONY : naive.cpp.o
 
-dgemm-blas.i: dgemm-blas.c.i
-.PHONY : dgemm-blas.i
-
-# target to preprocess a source file
-dgemm-blas.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blas.dir/build.make CMakeFiles/benchmark-blas.dir/dgemm-blas.c.i
-.PHONY : dgemm-blas.c.i
-
-dgemm-blas.s: dgemm-blas.c.s
-.PHONY : dgemm-blas.s
-
-# target to generate assembly for a file
-dgemm-blas.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blas.dir/build.make CMakeFiles/benchmark-blas.dir/dgemm-blas.c.s
-.PHONY : dgemm-blas.c.s
-
-dgemm-blocked.o: dgemm-blocked.c.o
-.PHONY : dgemm-blocked.o
-
-# target to build an object file
-dgemm-blocked.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blocked.dir/build.make CMakeFiles/benchmark-blocked.dir/dgemm-blocked.c.o
-.PHONY : dgemm-blocked.c.o
-
-dgemm-blocked.i: dgemm-blocked.c.i
-.PHONY : dgemm-blocked.i
+naive.i: naive.cpp.i
+.PHONY : naive.i
 
 # target to preprocess a source file
-dgemm-blocked.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blocked.dir/build.make CMakeFiles/benchmark-blocked.dir/dgemm-blocked.c.i
-.PHONY : dgemm-blocked.c.i
+naive.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/naive.cpp.i
+.PHONY : naive.cpp.i
 
-dgemm-blocked.s: dgemm-blocked.c.s
-.PHONY : dgemm-blocked.s
-
-# target to generate assembly for a file
-dgemm-blocked.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-blocked.dir/build.make CMakeFiles/benchmark-blocked.dir/dgemm-blocked.c.s
-.PHONY : dgemm-blocked.c.s
-
-dgemm-naive.o: dgemm-naive.c.o
-.PHONY : dgemm-naive.o
-
-# target to build an object file
-dgemm-naive.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-naive.dir/build.make CMakeFiles/benchmark-naive.dir/dgemm-naive.c.o
-.PHONY : dgemm-naive.c.o
-
-dgemm-naive.i: dgemm-naive.c.i
-.PHONY : dgemm-naive.i
-
-# target to preprocess a source file
-dgemm-naive.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-naive.dir/build.make CMakeFiles/benchmark-naive.dir/dgemm-naive.c.i
-.PHONY : dgemm-naive.c.i
-
-dgemm-naive.s: dgemm-naive.c.s
-.PHONY : dgemm-naive.s
+naive.s: naive.cpp.s
+.PHONY : naive.s
 
 # target to generate assembly for a file
-dgemm-naive.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark-naive.dir/build.make CMakeFiles/benchmark-naive.dir/dgemm-naive.c.s
-.PHONY : dgemm-naive.c.s
+naive.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/naive.dir/build.make CMakeFiles/naive.dir/naive.cpp.s
+.PHONY : naive.cpp.s
 
 # Help Target
 help:
@@ -272,22 +185,13 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... benchmark"
-	@echo "... benchmark-blas"
-	@echo "... benchmark-blocked"
-	@echo "... benchmark-naive"
-	@echo "... benchmark.o"
-	@echo "... benchmark.i"
-	@echo "... benchmark.s"
-	@echo "... dgemm-blas.o"
-	@echo "... dgemm-blas.i"
-	@echo "... dgemm-blas.s"
-	@echo "... dgemm-blocked.o"
-	@echo "... dgemm-blocked.i"
-	@echo "... dgemm-blocked.s"
-	@echo "... dgemm-naive.o"
-	@echo "... dgemm-naive.i"
-	@echo "... dgemm-naive.s"
+	@echo "... naive"
+	@echo "... main.o"
+	@echo "... main.i"
+	@echo "... main.s"
+	@echo "... naive.o"
+	@echo "... naive.i"
+	@echo "... naive.s"
 .PHONY : help
 
 
