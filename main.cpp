@@ -12,23 +12,23 @@
 // =================
 
 // I/O routines
-void save(std::ofstream &fsave, person_t *parts, int num_parts, double size)
-{
-    static bool first = true;
+// void save(std::ofstream &fsave, person_t *parts, int num_parts, double size)
+// {
+//     static bool first = true;
 
-    if (first)
-    {
-        fsave << num_parts << " " << size << "\n";
-        first = false;
-    }
+//     if (first)
+//     {
+//         fsave << num_parts << " " << size << "\n";
+//         first = false;
+//     }
 
-    for (int i = 0; i < num_parts; ++i)
-    {
-        fsave << parts[i].x << " " << parts[i].y << "\n";
-    }
+//     for (int i = 0; i < num_parts; ++i)
+//     {
+//         fsave << parts[i].x << " " << parts[i].y << "\n";
+//     }
 
-    fsave << std::endl;
-}
+//     fsave << std::endl;
+// }
 
 // Particle Initialization
 void init_particles(int num_people, int part_seed, std::queue<double> *entry)
@@ -118,16 +118,16 @@ int main(int argc, char **argv)
     // Initialize Particles
     int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
-    int end_time = 1000;
+    int end = 1000;
 
-    std::queue<double> *entry;
+    std::exponential_distribution<> entry_time(10);
 
-    init_particles(num_parts, part_seed, entry);
+    // init_particles(num_parts, part_seed, entry_time);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-    init_simulation(num_parts, entry);
+    init_simulation(num_parts, entry_time);
 
     double next_time = 0;
 
@@ -135,19 +135,19 @@ int main(int argc, char **argv)
 #pragma omp parallel default(shared)
 #endif
     {
-        while (next_time < end_time)
+        while (next_time < end)
         // for (int step = 0; step < 1; ++step)
         {
-            double next_time = simulate_one_step(num_parts, entry);
+            double next_time = simulate_one_step(num_parts, entry_time);
 
             // Save state if necessary
 #ifdef _OPENMP
 #pragma omp master
 #endif
-            if (fsave.good() && (step % savefreq) == 0)
-            {
-                save(fsave, parts, num_parts, size);
-            }
+            // if (fsave.good() && (step % savefreq) == 0)
+            // {
+            //     save(fsave, parts, num_parts, size);
+            // }
         }
     }
 
@@ -159,5 +159,5 @@ int main(int argc, char **argv)
     // Finalize
     std::cout << "Simulation Time = " << seconds << " seconds for " << num_parts << " particles.\n";
     fsave.close();
-    delete[] parts;
+    // delete[] parts;
 }
