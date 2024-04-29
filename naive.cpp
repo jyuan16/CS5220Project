@@ -136,21 +136,17 @@ double simulate_one_step(double time)
   case 1:
     remove_and_update(airport.check_in, check_in_dist);
     security_handler(p);
-    return p.current_time;
 
   case 2:
     remove_and_update(airport.bag_check, bag_check_dist);
     security_handler(p);
-    return p.current_time;
 
   case 3:
     remove_and_update(airport.security, security_dist);
-    return p.current_time;
 
   case 4:
     remove_and_update(airport.security_precheck, precheck_dist);
-    return p.current_time;
   }
 
-  return -1; // should never happen
+  return p.current_time;
 }
