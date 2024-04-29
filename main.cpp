@@ -127,8 +127,8 @@ int main(int argc, char **argv)
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-    init_simulation(entry_rate, check_in_time, bag_check_time, security_time, precheck_time, prob_precheck, prob_check_in, prob_check_bag, num_check_in, num_bag_check, num_security, num_precheck);
-
+    // init_simulation(entry_rate, check_in_time, bag_check_time, security_time, precheck_time, prob_precheck, prob_check_in, prob_check_bag, num_check_in, num_bag_check, num_security, num_precheck);
+    init_simulation();
     double current_time = 0;
 
 #ifdef _OPENMP

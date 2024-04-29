@@ -12,6 +12,14 @@ struct person_t
       : arrival_time(arrival), current_time(current), queue_id(id) {}
 };
 
+struct CompareCurrentTime
+{
+  bool operator()(const person_t &p1, const person_t &p2)
+  {
+    return p1.current_time > p2.current_time;
+  }
+};
+
 struct queue_t
 {
   int processing_heads;
@@ -27,14 +35,6 @@ struct airport_t
   queue_t *security;          // queue_id = 3
   queue_t *security_precheck; // queue_id = 4
 } airport;
-
-struct CompareCurrentTime
-{
-  bool operator()(const person_t &p1, const person_t &p2)
-  {
-    return p1.current_time > p2.current_time;
-  }
-};
 
 std::priority_queue<person_t, std::vector<person_t>, CompareCurrentTime> next_step;
 std::mt19937 gen(std::random_device{}());
@@ -115,6 +115,7 @@ double simulate_one_step(double time)
   switch (p.queue_id)
   {
   case 0:
+  {
     double p_queue = uniform_dist(gen);
     if (p_queue < prob_check_in)
     {
@@ -132,20 +133,25 @@ double simulate_one_step(double time)
     }
     double next_person_time = p.current_time + entry_dist(gen);
     next_step.push(person_t(next_person_time, next_person_time, 0.0));
-
+  }
   case 1:
+  {
     remove_and_update(airport.check_in, check_in_dist);
     security_handler(p);
-
+  }
   case 2:
+  {
     remove_and_update(airport.bag_check, bag_check_dist);
     security_handler(p);
-
+  }
   case 3:
+  {
     remove_and_update(airport.security, security_dist);
-
+  }
   case 4:
+  {
     remove_and_update(airport.security_precheck, precheck_dist);
+  }
   }
 
   return p.current_time;
