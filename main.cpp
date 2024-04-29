@@ -127,18 +127,18 @@ int main(int argc, char **argv)
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-    init_simulation(num_parts, entry_time);
+    init_simulation();
 
-    double next_time = 0;
+    double current_time = 0;
 
 #ifdef _OPENMP
 #pragma omp parallel default(shared)
 #endif
     {
-        while (next_time < end)
+        while (current_time < end)
         // for (int step = 0; step < 1; ++step)
         {
-            double next_time = simulate_one_step(num_parts, entry_time);
+            current_time = simulate_one_step(current_time);
 
             // Save state if necessary
 #ifdef _OPENMP
