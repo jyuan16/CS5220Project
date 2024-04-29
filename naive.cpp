@@ -47,6 +47,16 @@ std::normal_distribution<double> precheck_dist(precheck_time, 3);
 
 void init_simulation()
 {
+  airport.check_in = new queue_t{};
+  airport.bag_check = new queue_t{};
+  airport.security = new queue_t{};
+  airport.security_precheck = new queue_t{};
+
+  for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+  {
+    queue->processing_heads = 1;
+    queue->processing_count = 0;
+  }
   double time = entry_dist(gen);
   person_t p = person_t(time, time, 0.0);
   next_step.push(p);
@@ -54,7 +64,7 @@ void init_simulation()
 
 void add_person(person_t p, queue_t *q, std::normal_distribution<double> dist)
 {
-  if (q->processing_count < 4)
+  if (q->processing_count < q->processing_heads)
   {
     q->processing_count += 1;
     p.current_time += std::max(0.0, dist(gen));
@@ -133,26 +143,30 @@ double simulate_one_step(double time)
     }
     double next_person_time = p.current_time + entry_dist(gen);
     next_step.push(person_t(next_person_time, next_person_time, 0.0));
+    break;
   }
   case 1:
   {
     remove_and_update(airport.check_in, check_in_dist);
     security_handler(p);
+    break;
   }
   case 2:
   {
     remove_and_update(airport.bag_check, bag_check_dist);
     security_handler(p);
+    break;
   }
   case 3:
   {
     remove_and_update(airport.security, security_dist);
+    break;
   }
   case 4:
   {
     remove_and_update(airport.security_precheck, precheck_dist);
+    break;
   }
   }
-
   return p.current_time;
 }
