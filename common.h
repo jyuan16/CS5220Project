@@ -7,6 +7,7 @@
 
 // Program Constants
 #define entry_rate 1
+#define stddev 10
 #define check_in_time 30
 #define bag_check_time 30
 #define security_time 30

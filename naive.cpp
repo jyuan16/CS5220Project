@@ -1,103 +1,140 @@
 #include "common.h"
 #include <cmath>
 
-// Particle Data Structure
-typedef struct person_t
+// Simulation Data Structure
+struct person_t
 {
-  int id;
   double arrival_time;
-  double end_time;
-} person_t;
+  double current_time;
+  int queue_id;
 
-typedef struct queue_t
+  person_t(double arrival, double current, int id)
+      : arrival_time(arrival), current_time(current), queue_id(id) {}
+};
+
+struct queue_t
 {
   int processing_heads;
-  std::queue<person_t> queue;
-  double next_time;
-  bool is_norm;
-  std::normal_distribution<> norm_dist;
-  std::exponential_distribution<> exp_dist;
-} queue_t;
+  std::priority_queue<person_t> processing_queue;
+  std::queue<person_t> waiting_queue;
+};
 
-typedef struct airport_t
+struct airport_t
 {
-  queue_t *entry;
-  queue_t *check_in;
-  queue_t *bag_check;
-  queue_t *security;
-  queue_t *security_precheck;
-  double p_precheck;
-  double p_checkin;
-  double p_check_bag;
-} airport_t;
+  queue_t *entry;             // queue_id = 0
+  queue_t *check_in;          // queue_id = 1
+  queue_t *bag_check;         // queue_id = 2
+  queue_t *security;          // queue_id = 3
+  queue_t *security_precheck; // queue_id = 4
+} airport;
 
-// Apply the force from neighbor to particle
-void apply_force(particle_t &particle, particle_t &neighbor)
+struct CompareCurrentTime
 {
-  // Calculate Distance
-  double dx = neighbor.x - particle.x;
-  double dy = neighbor.y - particle.y;
-  double r2 = dx * dx + dy * dy;
-
-  // Check if the two particles should interact
-  if (r2 > cutoff * cutoff)
-    return;
-
-  r2 = fmax(r2, min_r * min_r);
-  double r = sqrt(r2);
-
-  // Very simple short-range repulsive force
-  double coef = (1 - cutoff / r) / r2 / mass;
-  particle.ax += coef * dx;
-  particle.ay += coef * dy;
-}
-
-// Integrate the ODE
-void move(particle_t &p, double size)
-{
-  // Slightly simplified Velocity Verlet integration
-  // Conserves energy better than explicit Euler method
-  p.vx += p.ax * dt;
-  p.vy += p.ay * dt;
-  p.x += p.vx * dt;
-  p.y += p.vy * dt;
-
-  // Bounce from walls
-  while (p.x < 0 || p.x > size)
+  bool operator()(const person_t &p1, const person_t &p2)
   {
-    p.x = p.x < 0 ? -p.x : 2 * size - p.x;
-    p.vx = -p.vx;
+    return p1.current_time > p2.current_time;
   }
+};
 
-  while (p.y < 0 || p.y > size)
-  {
-    p.y = p.y < 0 ? -p.y : 2 * size - p.y;
-    p.vy = -p.vy;
-  }
+std::priority_queue<person_t, std::vector<person_t>, CompareCurrentTime> next_step;
+std::mt19937 gen(std::random_device{}());
+std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+std::exponential_distribution<double> entry_dist(entry_rate);
+std::normal_distribution<double> check_in_next(check_in_time, 10);
+std::normal_distribution<double> bag_check_next(bag_check_time, 10);
+std::normal_distribution<double> security_next(security_time, 10);
+std::normal_distribution<double> precheck_next(precheck_time, 3);
+
+void init_simulation()
+{
+  double time = entry_dist(gen);
+  next_step.push(person_t(time, time, -1.0));
 }
 
-void init_simulation(particle_t *parts, int num_parts, double size)
+double simulate_one_step(double time)
 {
-  // You can use this space to initialize static, global data objects
-  // that you may need. This function will be called once before the
-  // algorithm begins. Do not do any particle simulation here
-}
+  person_t p = next_step.top();
+  next_step.pop();
 
-void simulate_one_step(particle_t *parts, int num_parts, double size)
-{
-  // Compute Forces
-  for (int i = 0; i < num_parts; ++i)
+  switch (p.queue_id)
   {
-    parts[i].ax = parts[i].ay = 0;
-    for (int j = 0; j < num_parts; ++j)
+  case -1:
+    double p_queue = uniform_dist(gen);
+    if (p_queue < prob_check_in)
     {
-      apply_force(parts[i], parts[j]);
+      p.queue_id = 1;
+      airport.check_in->queue.push(p);
     }
+    else if (p_queue < prob_check_bag + prob_check_in)
+    {
+      p.queue_id = 2;
+      airport.bag_check->queue.push(p);
+    }
+    else
+    {
+      security_helper();
+    }
+
+  case 0:
+    double p_queue = uniform_dist(gen);
+    airport.entry->queue.pop();
+    if (p_queue < prob_check_in)
+    {
+      p.queue_id = 1;
+      airport.check_in->queue.push(p);
+    }
+    else if (p_queue < prob_check_bag + prob_check_in)
+    {
+      p.queue_id = 2;
+      airport.bag_check->queue.push(p);
+    }
+    else
+    {
+      p_queue = uniform_dist(gen);
+      if (p_queue >= prob_precheck)
+      {
+        p.queue_id = 3;
+        airport.security->queue.push(p);
+      }
+      else
+      {
+        p.queue_id = 4;
+        airport.security_precheck->queue.push(p);
+      }
+    }
+    double next_person_time = p.current_time + entry_dist(gen);
+    next_step.push(person_t(next_person_time, next_person_time, -1.0));
+    next_step.push(airport.entry->queue.front());
+    return p.current_time;
+
+  case 1:
+    p.current_time = p.arrival_time + std::max(0.0, check_in_next(gen));
+    airport.check_in->queue.pop();
+
+    double p_queue = uniform_dist(gen);
+    if (p_queue >= prob_precheck)
+    {
+      p.queue_id = 3;
+      airport.security->queue.push(p);
+    }
+    else
+    {
+      p.queue_id = 4;
+      airport.security_precheck->queue.push(p);
+    }
+
+    airport.check_in->queue.front().current_time = p.current_time;
+    next_step.push(airport.check_in->processing_queue.top());
+
+  case 2:
+    break;
+
+  case 3:
+    break;
+
+  case 4:
+    break;
   }
 
-  // Move Particles
-  for (int i = 0; i < num_parts; ++i)
-  {
-    move(parts[i], size);
-  }
+  return -1; // should never happen
 }
