@@ -118,7 +118,7 @@ int main(int argc, char **argv)
     // Initialize Particles
     int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
-    int end = 1000;
+    int end = 24 * 60 * 60;
 
     std::exponential_distribution<> entry_time(10);
 
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-    init_simulation();
+    init_simulation(entry_rate, check_in_time, bag_check_time, security_time, precheck_time, prob_precheck, prob_check_in, prob_check_bag, num_check_in, num_bag_check, num_security, num_precheck);
 
     double current_time = 0;
 
