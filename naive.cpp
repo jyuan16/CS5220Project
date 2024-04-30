@@ -52,9 +52,12 @@ void init_simulation()
   airport.security = new queue_t{};
   airport.security_precheck = new queue_t{};
 
+  std::vector<int> processing_heads_count = {num_check_in, num_bag_check, num_security, num_precheck};
+  int cur_q = 0;
+
   for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
   {
-    queue->processing_heads = 1;
+    queue->processing_heads = processing_heads_count[cur_q];
     queue->processing_count = 0;
   }
   double time = entry_dist(gen);
