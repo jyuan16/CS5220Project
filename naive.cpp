@@ -7,9 +7,10 @@ struct person_t
   double arrival_time;
   double current_time;
   int queue_id;
+  int queue_line;
 
-  person_t(double arrival, double current, int id)
-      : arrival_time(arrival), current_time(current), queue_id(id) {}
+  person_t(double arrival, double current, int id, int line)
+      : arrival_time(arrival), current_time(current), queue_id(id), queue_line(line) {}
 };
 
 struct CompareCurrentTime
@@ -30,14 +31,15 @@ struct queue_t
 
 struct airport_t
 {
-  queue_t *check_in;          // queue_id = 1
-  queue_t *bag_check;         // queue_id = 2
-  queue_t *security;          // queue_id = 3
-  queue_t *security_precheck; // queue_id = 4
+  std::vector<queue_t *> check_in;          // queue_id = 1
+  std::vector<queue_t *> bag_check;         // queue_id = 2
+  std::vector<queue_t *> security;          // queue_id = 3
+  std::vector<queue_t *> security_precheck; // queue_id = 4
 } airport;
 
-std::priority_queue<person_t, std::vector<person_t>, CompareCurrentTime> next_step;
+person_t next_person(0, 0, 0, 0);
 std::mt19937 gen(std::random_device{}());
+std::uniform_int_distribution<> queue_generator(0, 9);
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::exponential_distribution<double> entry_dist(entry_rate);
 std::normal_distribution<double> check_in_dist(check_in_time, 10);
@@ -47,22 +49,35 @@ std::normal_distribution<double> precheck_dist(precheck_time, 3);
 
 void init_simulation()
 {
-  airport.check_in = new queue_t{};
-  airport.bag_check = new queue_t{};
-  airport.security = new queue_t{};
-  airport.security_precheck = new queue_t{};
+  // Resize the vectors to the number of queues needed for each type of queue
+  airport.check_in.resize(10);
+  airport.bag_check.resize(10);
+  airport.security.resize(10);
+  airport.security_precheck.resize(10);
 
-  std::vector<int> processing_heads_count = {num_check_in, num_bag_check, num_security, num_precheck};
-  int cur_q = 0;
-
-  for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+  // Initialize the queues in each vector
+  for (int i = 0; i < 10; i++)
   {
-    queue->processing_heads = processing_heads_count[cur_q];
-    queue->processing_count = 0;
+    airport.check_in[i] = new queue_t;
+    airport.check_in[i]->processing_heads = num_check_in;
+    airport.check_in[i]->processing_count = 0;
+
+    airport.bag_check[i] = new queue_t;
+    airport.bag_check[i]->processing_heads = num_bag_check;
+    airport.bag_check[i]->processing_count = 0;
+
+    airport.security[i] = new queue_t;
+    airport.security[i]->processing_heads = num_security;
+    airport.security[i]->processing_count = 0;
+
+    airport.security_precheck[i] = new queue_t;
+    airport.security_precheck[i]->processing_heads = num_precheck;
+    airport.security_precheck[i]->processing_count = 0;
   }
+
+  // Schedule the first person to arrive
   double time = entry_dist(gen);
-  person_t p = person_t(time, time, 0.0);
-  next_step.push(p);
+  next_person = person_t(time, time, 0, 0);
 }
 
 void add_person(person_t p, queue_t *q, std::normal_distribution<double> dist)
@@ -71,10 +86,6 @@ void add_person(person_t p, queue_t *q, std::normal_distribution<double> dist)
   {
     q->processing_count += 1;
     p.current_time += std::max(0.0, dist(gen));
-    if (q->processing_count == 1)
-    {
-      next_step.push(p);
-    }
     q->processing_queue.push(p);
   }
   else
@@ -95,36 +106,28 @@ void remove_and_update(queue_t *q, std::normal_distribution<double> dist)
     q->processing_queue.push(temp);
     q->processing_count += 1;
   }
-  if (q->processing_count > 0)
-  {
-    next_step.push(q->processing_queue.top());
-  }
 }
 
 void security_handler(person_t p)
 {
   double p_queue = uniform_dist(gen);
+  int next_queue = queue_generator(gen);
   if (p_queue < prob_precheck)
   {
     p.queue_id = 4;
-    add_person(p, airport.security_precheck, precheck_dist);
+    p.queue_line = next_queue;
+    add_person(p, airport.security_precheck[next_queue], precheck_dist);
   }
   else
   {
     p.queue_id = 3;
-    add_person(p, airport.security, security_dist);
+    p.queue_line = next_queue;
+    add_person(p, airport.security[next_queue], security_dist);
   }
 }
 
-double simulate_one_step(double time)
+void step(person_t p)
 {
-  if (next_step.empty())
-  {
-    return -1; // should never happen
-  }
-  person_t p = next_step.top();
-  next_step.pop();
-
   switch (p.queue_id)
   {
   case 0:
@@ -133,43 +136,75 @@ double simulate_one_step(double time)
     if (p_queue < prob_check_in)
     {
       p.queue_id = 1;
-      add_person(p, airport.check_in, check_in_dist);
+      p.queue_line = queue_generator(gen);
+      add_person(p, airport.check_in[p.queue_line], check_in_dist);
     }
     else if (p_queue < prob_check_bag + prob_check_in)
     {
       p.queue_id = 2;
-      add_person(p, airport.bag_check, bag_check_dist);
+      p.queue_line = queue_generator(gen);
+      add_person(p, airport.bag_check[p.queue_line], bag_check_dist);
     }
     else
     {
       security_handler(p);
     }
-    double next_person_time = p.current_time + entry_dist(gen);
-    next_step.push(person_t(next_person_time, next_person_time, 0.0));
     break;
   }
   case 1:
   {
-    remove_and_update(airport.check_in, check_in_dist);
+    remove_and_update(airport.check_in[p.queue_line], check_in_dist);
     security_handler(p);
     break;
   }
   case 2:
   {
-    remove_and_update(airport.bag_check, bag_check_dist);
+    remove_and_update(airport.bag_check[p.queue_line], bag_check_dist);
     security_handler(p);
     break;
   }
   case 3:
   {
-    remove_and_update(airport.security, security_dist);
+    remove_and_update(airport.security[p.queue_line], security_dist);
     break;
   }
   case 4:
   {
-    remove_and_update(airport.security_precheck, precheck_dist);
+    remove_and_update(airport.security_precheck[p.queue_line], precheck_dist);
     break;
   }
   }
-  return p.current_time;
+}
+
+void simulate_one_step(double *time)
+{
+  double next_person_time = next_person.current_time + entry_dist(gen);
+  step(next_person);
+  next_person = person_t(next_person_time, next_person_time, 0, 0);
+
+  for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+  {
+    for (int n = 0; n < 10; ++n)
+    {
+      queue_t *q = queue[n];
+      if (q->processing_count == q->processing_heads)
+      {
+        person_t p = q->processing_queue.top();
+        step(p);
+      }
+    }
+  }
+  for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+  {
+    for (int n = 0; n < 10; ++n)
+    {
+      if (queue[n]->processing_count > 0)
+      {
+        if (queue[n]->processing_queue.top().current_time > *time)
+        {
+          *time = queue[n]->processing_queue.top().current_time;
+        }
+      }
+    }
+  }
 }

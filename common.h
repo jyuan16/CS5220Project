@@ -21,8 +21,7 @@
 #define num_precheck 5
 
 // Simulation routine
-// void init_simulation(double entry, double check_in, double bag_check, double security, double precheck, double p_precheck, double p_check_in, double p_check_bag, int check_in_count, int bag_check_count, int security_count, int precheck_count);
 void init_simulation();
-double simulate_one_step(double current_time);
+void simulate_one_step(double *current_time);
 
 #endif

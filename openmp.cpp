@@ -1,216 +1,220 @@
-// #include "common.h"
-// #include <omp.h>
-
-// // Put any static global variables here that you will use throughout the simulation.
-
-// void init_simulation(particle_t* parts, int num_parts, double size) {
-// 	// You can use this space to initialize data objects that you may need
-// 	// This function will be called once before the algorithm begins
-// 	// Do not do any particle simulation here
-// }
-
-// void simulate_one_step(particle_t* parts, int num_parts, double size) {
-//     // Write this function
-// }
-
 #include "common.h"
-#include <omp.h>
 #include <cmath>
 
-#include <stdlib.h>
-#include <vector>
-#include <unordered_set>
-#include <unordered_map>
-#include <algorithm>
-#include <iostream>
-
-typedef struct node_t
+// Simulation Data Structure
+struct person_t
 {
-	struct particle_t *particle;
-	struct node_t *next;
+	double arrival_time;
+	double current_time;
+	int queue_id;
+	int queue_line;
 
-	node_t(particle_t *p)
+	person_t(double arrival, double current, int id, int line)
+			: arrival_time(arrival), current_time(current), queue_id(id), queue_line(line) {}
+};
+
+struct CompareCurrentTime
+{
+	bool operator()(const person_t &p1, const person_t &p2)
 	{
-		particle = p;
-		next = nullptr;
+		return p1.current_time > p2.current_time;
 	}
-} node_t;
+};
 
-double bin_size = cutoff;
-int num_bins;
-// std::vector<std::vector<std::unordered_set<int>>> bins;
-std::vector<std::vector<node_t *>> bins;
-node_t *nodes;
-// std::vector<node_t> nodes;
-
-void rebin(int num_parts)
+struct queue_t
 {
-	// #pragma omp for // collapse(2) // schedule(dynamic)
-	for (int x = 0; x < num_bins; x++)
+	int processing_heads;
+	int processing_count;
+	std::priority_queue<person_t, std::vector<person_t>, CompareCurrentTime> processing_queue;
+	std::queue<person_t> waiting_queue;
+};
+
+struct airport_t
+{
+	std::vector<queue_t *> check_in;					// queue_id = 1
+	std::vector<queue_t *> bag_check;					// queue_id = 2
+	std::vector<queue_t *> security;					// queue_id = 3
+	std::vector<queue_t *> security_precheck; // queue_id = 4
+} airport;
+
+person_t next_person(0, 0, 0, 0);
+std::mt19937 gen(std::random_device{}());
+std::uniform_int_distribution<> queue_generator(0, 9);
+std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+std::exponential_distribution<double> entry_dist(entry_rate);
+std::normal_distribution<double> check_in_dist(check_in_time, 10);
+std::normal_distribution<double> bag_check_dist(bag_check_time, 10);
+std::normal_distribution<double> security_dist(security_time, 10);
+std::normal_distribution<double> precheck_dist(precheck_time, 3);
+
+void init_simulation()
+{
+	// Resize the vectors to the number of queues needed for each type of queue
+	airport.check_in.resize(10);
+	airport.bag_check.resize(10);
+	airport.security.resize(10);
+	airport.security_precheck.resize(10);
+
+	// Initialize the queues in each vector
+	for (int i = 0; i < 10; i++)
 	{
-		for (int y = 0; y < num_bins; y++)
+		airport.check_in[i] = new queue_t;
+		airport.check_in[i]->processing_heads = num_check_in;
+		airport.check_in[i]->processing_count = 0;
+
+		airport.bag_check[i] = new queue_t;
+		airport.bag_check[i]->processing_heads = num_bag_check;
+		airport.bag_check[i]->processing_count = 0;
+
+		airport.security[i] = new queue_t;
+		airport.security[i]->processing_heads = num_security;
+		airport.security[i]->processing_count = 0;
+
+		airport.security_precheck[i] = new queue_t;
+		airport.security_precheck[i]->processing_heads = num_precheck;
+		airport.security_precheck[i]->processing_count = 0;
+	}
+
+	// Schedule the first person to arrive
+	double time = entry_dist(gen);
+	next_person = person_t(time, time, 0, 0);
+}
+
+void add_person(person_t p, queue_t *q, std::normal_distribution<double> dist)
+{
+	if (q->processing_count < q->processing_heads)
+	{
+		q->processing_count += 1;
+		p.current_time += std::max(0.0, dist(gen));
+		q->processing_queue.push(p);
+	}
+	else
+	{
+		q->waiting_queue.push(p);
+	}
+}
+
+void remove_and_update(queue_t *q, std::normal_distribution<double> dist)
+{
+	q->processing_queue.pop();
+	q->processing_count -= 1;
+	if (!q->waiting_queue.empty())
+	{
+		person_t temp = q->waiting_queue.front();
+		q->waiting_queue.pop();
+		temp.current_time += std::max(0.0, dist(gen));
+		q->processing_queue.push(temp);
+		q->processing_count += 1;
+	}
+}
+
+void security_handler(person_t p)
+{
+	double p_queue = uniform_dist(gen);
+	int next_queue = queue_generator(gen);
+	if (p_queue < prob_precheck)
+	{
+		p.queue_id = 4;
+		p.queue_line = next_queue;
+		add_person(p, airport.security_precheck[next_queue], precheck_dist);
+	}
+	else
+	{
+		p.queue_id = 3;
+		p.queue_line = next_queue;
+		add_person(p, airport.security[next_queue], security_dist);
+	}
+}
+
+void step(person_t p)
+{
+	switch (p.queue_id)
+	{
+	case 0:
+	{
+		double p_queue = uniform_dist(gen);
+		if (p_queue < prob_check_in)
 		{
-			bins[x][y] = nullptr;
+			p.queue_id = 1;
+			p.queue_line = queue_generator(gen);
+			add_person(p, airport.check_in[p.queue_line], check_in_dist);
 		}
-	}
-	// #pragma omp for // schedule(dynamic)
-	for (int i = 0; i < num_parts; i++)
-	{
-		int x_bin = nodes[i].particle->x / bin_size;
-		int y_bin = nodes[i].particle->y / bin_size;
-		// #pragma omp critical
+		else if (p_queue < prob_check_bag + prob_check_in)
 		{
-			nodes[i].next = bins[x_bin][y_bin];
-			bins[x_bin][y_bin] = &nodes[i];
+			p.queue_id = 2;
+			p.queue_line = queue_generator(gen);
+			add_person(p, airport.bag_check[p.queue_line], bag_check_dist);
 		}
-	}
-}
-
-// Apply the force from neighbor to particle
-void apply_force(particle_t *particle, particle_t *neighbor)
-{
-	// Calculate Distance
-	double dx = neighbor->x - particle->x;
-	double dy = neighbor->y - particle->y;
-	double r2 = dx * dx + dy * dy;
-
-	// Check if the two particles should interact
-	if (r2 > cutoff * cutoff)
-		return;
-
-	r2 = fmax(r2, min_r * min_r);
-	double r = sqrt(r2);
-
-	// Very simple short-range repulsive force
-	double coef = (1 - cutoff / r) / r2 / mass;
-	particle->ax += coef * dx;
-	particle->ay += coef * dy;
-}
-
-// Integrate the ODE
-void move(particle_t &p, double size)
-{
-	// Slightly simplified Velocity Verlet integration
-	// Conserves energy better than explicit Euler method
-
-	// int x_bin_old = p.x / bin_size;
-	// int y_bin_old = p.y / bin_size;
-
-	p.vx += p.ax * dt;
-	p.vy += p.ay * dt;
-	p.x += p.vx * dt;
-	p.y += p.vy * dt;
-
-	// Bounce from walls
-	while (p.x < 0 || p.x > size)
-	{
-		p.x = p.x < 0 ? -p.x : 2 * size - p.x;
-		p.vx = -p.vx;
-	}
-
-	while (p.y < 0 || p.y > size)
-	{
-		p.y = p.y < 0 ? -p.y : 2 * size - p.y;
-		p.vy = -p.vy;
-	}
-
-	// int x_bin = p.x / bin_size;
-	// int y_bin = p.y / bin_size;
-	// if (x_bin != x_bin_old || y_bin != y_bin_old)
-	// {
-	//     bins[x_bin_old][y_bin_old].erase(i);
-	//     bins[x_bin][y_bin].insert(i);
-	// }
-}
-
-void init_simulation(particle_t *parts, int num_parts, double size)
-{
-// You can use this space to initialize static, global data objects
-// that you may need. This function will be called once before the
-// algorithm begins. Do not do any particle simulation here
-#pragma omp master
-	{
-		num_bins = (int)((size + bin_size) / bin_size);
-		nodes = (node_t *)malloc(sizeof(node_t) * num_parts);
-		// nodes.reserve(num_parts);
-		// bins.resize(num_bins, std::vector<std::unordered_set<int>>(num_bins, std::unordered_set<int>()));
-		bins.resize(num_bins, std::vector<node_t *>(num_bins, nullptr));
-		for (int i = 0; i < num_parts; i++)
+		else
 		{
-			// int x_bin = parts[i].x / bin_size;
-			// int y_bin = parts[i].y / bin_size;
-			// bins[x_bin][y_bin].insert(i);
-			nodes[i] = node_t(&parts[i]);
+			security_handler(p);
 		}
-		rebin(num_parts);
+		break;
+	}
+	case 1:
+	{
+		remove_and_update(airport.check_in[p.queue_line], check_in_dist);
+		security_handler(p);
+		break;
+	}
+	case 2:
+	{
+		remove_and_update(airport.bag_check[p.queue_line], bag_check_dist);
+		security_handler(p);
+		break;
+	}
+	case 3:
+	{
+		remove_and_update(airport.security[p.queue_line], security_dist);
+		break;
+	}
+	case 4:
+	{
+		remove_and_update(airport.security_precheck[p.queue_line], precheck_dist);
+		break;
+	}
 	}
 }
 
-void simulate_one_step(particle_t *parts, int num_parts, double size)
+void simulate_one_step(double *time)
 {
-	// #pragma omp master
-	// 	{
-#pragma omp barrier
-#pragma omp for
-	for (int x = 0; x < num_bins; x++)
+#pragma omp for collapse(2)
+	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 	{
-		for (int y = 0; y < num_bins; y++)
+		for (int n = 0; n < 10; ++n)
 		{
-			node_t *node = bins[x][y];
-			while (node != nullptr)
+			queue_t *q = queue[n];
+			if (q->processing_count == q->processing_heads)
 			{
-				node->particle->ax = node->particle->ay = 0;
-				for (int a = x - 1; a <= x + 1; a++)
+#pragma omp critical
 				{
-					if (a >= 0 && a < num_bins)
+					if (!q->processing_queue.empty())
 					{
-						for (int b = y - 1; b <= y + 1; b++)
-						{
-							if (b >= 0 && b < num_bins)
-							{
-								node_t *node2 = bins[a][b];
-								while (node2 != nullptr)
-								{
-									apply_force(node->particle, node2->particle);
-									node2 = node2->next;
-								}
-							}
-						}
+						person_t p = q->processing_queue.top();
+						step(p);
 					}
 				}
-				node = node->next;
 			}
 		}
 	}
-// }
-// #pragma omp barrier
-#pragma omp master
-	{
-		// #pragma omp for
-		for (int i = 0; i < num_parts; ++i)
-		{
-			move(parts[i], size);
-		}
-		// #pragma omp master
-		// 	{
-		for (int x = 0; x < num_bins; x++)
-		{
-			for (int y = 0; y < num_bins; y++)
-			{
-				bins[x][y] = nullptr;
-			}
-		}
 
-		for (int i = 0; i < num_parts; i++)
+#pragma omp barrier
+
+#pragma omp master
+	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+	{
+		for (int n = 0; n < 10; ++n)
 		{
-			int x_bin = nodes[i].particle->x / bin_size;
-			int y_bin = nodes[i].particle->y / bin_size;
-			// #pragma omp critical
+#pragma omp critical
 			{
-				nodes[i].next = bins[x_bin][y_bin];
-				bins[x_bin][y_bin] = &nodes[i];
+				if (queue[n]->processing_count > 0 && !queue[n]->processing_queue.empty())
+				{
+					if (queue[n]->processing_queue.top().current_time > *time)
+					{
+						*time = queue[n]->processing_queue.top().current_time;
+					}
+				}
 			}
 		}
 	}
-	// }
 }

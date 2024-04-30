@@ -66,15 +66,16 @@ int main(int argc, char **argv)
     auto start_time = std::chrono::steady_clock::now();
 
     init_simulation();
-    double current_time = 0;
+    double current_time_val = 0;
+    double *current_time = &current_time_val;
 
 #ifdef _OPENMP
 #pragma omp parallel default(shared)
 #endif
     {
-        while (current_time < end)
+        while (*current_time < end)
         {
-            current_time = simulate_one_step(current_time);
+            simulate_one_step(current_time);
         }
     }
 
