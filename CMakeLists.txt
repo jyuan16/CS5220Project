@@ -27,15 +27,11 @@ if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
             "module swap ${Prg-${CMAKE_C_COMPILER_ID}} PrgEnv-gnu")
 endif ()
 
-# add_executable(serial main.cpp serial.cpp common.h)
-
-# add_executable(openmp main.cpp openmp.cpp common.h)
-
 add_executable(naive main.cpp naive.cpp common.h)
 
-# target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)
+add_executable(openmp main.cpp openmp.cpp common.h)
+target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)
 
 # Copy the job scripts
-# configure_file(job-serial job-serial COPYONLY)
-# configure_file(job-openmp job-openmp COPYONLY)
 configure_file(job-naive job-naive COPYONLY)
+configure_file(job-openmp job-openmp COPYONLY)
