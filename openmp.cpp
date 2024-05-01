@@ -1,5 +1,7 @@
 #include "common.h"
 #include <cmath>
+#include <omp.h>
+#include <cstdlib>
 
 // Simulation Data Structure
 struct person_t
@@ -27,6 +29,7 @@ struct queue_t
 	int processing_count;
 	std::priority_queue<person_t, std::vector<person_t>, CompareCurrentTime> processing_queue;
 	std::queue<person_t> waiting_queue;
+	omp_lock_t writelock;
 };
 
 struct airport_t
@@ -61,18 +64,22 @@ void init_simulation()
 		airport.check_in[i] = new queue_t;
 		airport.check_in[i]->processing_heads = num_check_in;
 		airport.check_in[i]->processing_count = 0;
+		omp_init_lock(&airport.check_in[i]->writelock);
 
 		airport.bag_check[i] = new queue_t;
 		airport.bag_check[i]->processing_heads = num_bag_check;
 		airport.bag_check[i]->processing_count = 0;
+		omp_init_lock(&airport.bag_check[i]->writelock);
 
 		airport.security[i] = new queue_t;
 		airport.security[i]->processing_heads = num_security;
 		airport.security[i]->processing_count = 0;
+		omp_init_lock(&airport.security[i]->writelock);
 
 		airport.security_precheck[i] = new queue_t;
 		airport.security_precheck[i]->processing_heads = num_precheck;
 		airport.security_precheck[i]->processing_count = 0;
+		omp_init_lock(&airport.security_precheck[i]->writelock);
 	}
 
 	// Schedule the first person to arrive
@@ -82,20 +89,25 @@ void init_simulation()
 
 void add_person(person_t p, queue_t *q, std::normal_distribution<double> dist)
 {
+	omp_set_lock(&q->writelock);
 	if (q->processing_count < q->processing_heads)
 	{
-		q->processing_count += 1;
 		p.current_time += std::max(0.0, dist(gen));
+
+		q->processing_count += 1;
 		q->processing_queue.push(p);
 	}
 	else
 	{
 		q->waiting_queue.push(p);
 	}
+	omp_unset_lock(&q->writelock);
 }
 
 void remove_and_update(queue_t *q, std::normal_distribution<double> dist)
 {
+	omp_set_lock(&q->writelock);
+
 	q->processing_queue.pop();
 	q->processing_count -= 1;
 	if (!q->waiting_queue.empty())
@@ -106,6 +118,7 @@ void remove_and_update(queue_t *q, std::normal_distribution<double> dist)
 		q->processing_queue.push(temp);
 		q->processing_count += 1;
 	}
+	omp_unset_lock(&q->writelock);
 }
 
 void security_handler(person_t p)
@@ -178,6 +191,12 @@ void step(person_t p)
 
 void simulate_one_step(double *time)
 {
+#pragma omp master
+	{
+		double next_person_time = next_person.current_time + entry_dist(gen);
+		step(next_person);
+		next_person = person_t(next_person_time, next_person_time, 0, 0);
+	}
 #pragma omp for collapse(2)
 	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 	{
@@ -186,33 +205,24 @@ void simulate_one_step(double *time)
 			queue_t *q = queue[n];
 			if (q->processing_count == q->processing_heads)
 			{
-#pragma omp critical
-				{
-					if (!q->processing_queue.empty())
-					{
-						person_t p = q->processing_queue.top();
-						step(p);
-					}
-				}
+				person_t p = q->processing_queue.top();
+				step(p);
 			}
 		}
 	}
 
-#pragma omp barrier
+	// #pragma omp barrier
 
 #pragma omp master
 	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 	{
 		for (int n = 0; n < 10; ++n)
 		{
-#pragma omp critical
+			if (queue[n]->processing_count > 0)
 			{
-				if (queue[n]->processing_count > 0 && !queue[n]->processing_queue.empty())
+				if (queue[n]->processing_queue.top().current_time > *time)
 				{
-					if (queue[n]->processing_queue.top().current_time > *time)
-					{
-						*time = queue[n]->processing_queue.top().current_time;
-					}
+					*time = queue[n]->processing_queue.top().current_time;
 				}
 			}
 		}
