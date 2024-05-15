@@ -45,21 +45,21 @@ std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> queue_generator(0, 9);
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::exponential_distribution<double> entry_dist(entry_rate);
-std::normal_distribution<double> check_in_dist(check_in_time, 10);
-std::normal_distribution<double> bag_check_dist(bag_check_time, 10);
-std::normal_distribution<double> security_dist(security_time, 10);
+std::normal_distribution<double> check_in_dist(check_in_time, num_queue);
+std::normal_distribution<double> bag_check_dist(bag_check_time, num_queue);
+std::normal_distribution<double> security_dist(security_time, num_queue);
 std::normal_distribution<double> precheck_dist(precheck_time, 3);
 
 void init_simulation()
 {
 	// Resize the vectors to the number of queues needed for each type of queue
-	airport.check_in.resize(10);
-	airport.bag_check.resize(10);
-	airport.security.resize(10);
-	airport.security_precheck.resize(10);
+	airport.check_in.resize(num_queue);
+	airport.bag_check.resize(num_queue);
+	airport.security.resize(num_queue);
+	airport.security_precheck.resize(num_queue);
 
 	// Initialize the queues in each vector
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < num_queue; i++)
 	{
 		airport.check_in[i] = new queue_t;
 		airport.check_in[i]->processing_heads = num_check_in;
@@ -200,7 +200,7 @@ void simulate_one_step(double *time)
 #pragma omp for collapse(2)
 	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 	{
-		for (int n = 0; n < 10; ++n)
+		for (int n = 0; n < num_queue; ++n)
 		{
 			queue_t *q = queue[n];
 			if (q->processing_count == q->processing_heads)
@@ -216,7 +216,7 @@ void simulate_one_step(double *time)
 #pragma omp master
 	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 	{
-		for (int n = 0; n < 10; ++n)
+		for (int n = 0; n < num_queue; ++n)
 		{
 			if (queue[n]->processing_count > 0)
 			{
@@ -225,6 +225,22 @@ void simulate_one_step(double *time)
 					*time = queue[n]->processing_queue.top().current_time;
 				}
 			}
+		}
+	}
+}
+
+void run_monte_carlo(int sim_count, int end)
+{
+#pragma omp for
+	for (int i = 0; i < sim_count; ++i)
+	{
+		double current_time_val = 0;
+		double *current_time = &current_time_val;
+		init_simulation();
+
+		while (*current_time < end)
+		{
+			simulate_one_step(current_time);
 		}
 	}
 }

@@ -60,24 +60,8 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    // Open Output File
-    char *savename = find_string_option(argc, argv, "-o", nullptr);
-    std::ofstream fsave(savename);
-
     // Initialize Particles
     int end = find_int_arg(argc, argv, "-d", 1) * (24 * 60 * 60);
-
-    // int num_parts = find_int_arg(argc, argv, "-n", 1000);
-    // int part_seed = find_int_arg(argc, argv, "-s", 0);
-    // double size = sqrt(density * num_parts);
-
-    // particle_t *parts = new particle_t[num_parts];
-
-    // init_particles(parts, num_parts, size, part_seed);
-
-    // particle_t *parts_gpu;
-    // cudaMalloc((void **)&parts_gpu, num_parts * sizeof(particle_t));
-    // cudaMemcpy(parts_gpu, parts, num_parts * sizeof(particle_t), cudaMemcpyHostToDevice);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();

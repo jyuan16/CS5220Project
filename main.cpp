@@ -56,28 +56,17 @@ int main(int argc, char **argv)
         std::cout << "Options:" << std::endl;
         std::cout << "-h: see this help" << std::endl;
         std::cout << "-d: <int>: set end time (in seconds)" << std::endl;
+        std::cout << "-s: <int>: set number of simulation runs" << std::endl;
         return 0;
     }
 
-    // Initialize Particles
     int end = find_int_arg(argc, argv, "-d", 1) * (24 * 60 * 60);
+    int sim_count = find_int_arg(argc, argv, "-s", 1);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
-
-    init_simulation();
-    double current_time_val = 0;
-    double *current_time = &current_time_val;
-
-#ifdef _OPENMP
-#pragma omp parallel default(shared)
-#endif
-    {
-        while (*current_time < end)
-        {
-            simulate_one_step(current_time);
-        }
-    }
+    std::cout << "yoo" << std::endl;
+    run_monte_carlo(sim_count, end);
 
     auto end_time = std::chrono::steady_clock::now();
 
@@ -85,5 +74,5 @@ int main(int argc, char **argv)
     double seconds = diff.count();
 
     // Finalize
-    std::cout << "Simulation Time = " << seconds << " seconds for " << end / (24 * 60 * 60) << " days.\n";
+    std::cout << "Simulation Time = " << seconds << " seconds for " << sim_count << " simulation runs of " << end / (24 * 60 * 60) << " days.\n";
 }
