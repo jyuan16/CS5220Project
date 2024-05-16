@@ -42,9 +42,9 @@ std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> queue_generator(0, 9);
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::exponential_distribution<double> entry_dist(entry_rate);
-std::normal_distribution<double> check_in_dist(check_in_time, num_queue);
-std::normal_distribution<double> bag_check_dist(bag_check_time, num_queue);
-std::normal_distribution<double> security_dist(security_time, num_queue);
+std::normal_distribution<double> check_in_dist(check_in_time, 10);
+std::normal_distribution<double> bag_check_dist(bag_check_time, 10);
+std::normal_distribution<double> security_dist(security_time, 10);
 std::normal_distribution<double> precheck_dist(precheck_time, 3);
 
 void init_simulation()

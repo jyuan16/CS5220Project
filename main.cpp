@@ -65,8 +65,7 @@ int main(int argc, char **argv)
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
-// std::cout << "yoo" << std::endl;
-#pragma omp parallel default(shared)
+#pragma omp parallel
     {
         run_monte_carlo(sim_count, end);
     }

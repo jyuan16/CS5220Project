@@ -2,6 +2,10 @@
 #include <cmath>
 #include <omp.h>
 #include <cstdlib>
+#include <queue>
+#include <random>
+#include <vector>
+#include <algorithm>
 
 // Simulation Data Structure
 struct person_t
@@ -38,19 +42,18 @@ struct airport_t
 	std::vector<queue_t *> bag_check;					// queue_id = 2
 	std::vector<queue_t *> security;					// queue_id = 3
 	std::vector<queue_t *> security_precheck; // queue_id = 4
-} airport;
+};
 
-person_t next_person(0, 0, 0, 0);
 std::mt19937 gen(std::random_device{}());
 std::uniform_int_distribution<> queue_generator(0, 9);
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::exponential_distribution<double> entry_dist(entry_rate);
-std::normal_distribution<double> check_in_dist(check_in_time, num_queue);
-std::normal_distribution<double> bag_check_dist(bag_check_time, num_queue);
-std::normal_distribution<double> security_dist(security_time, num_queue);
+std::normal_distribution<double> check_in_dist(check_in_time, 10);
+std::normal_distribution<double> bag_check_dist(bag_check_time, 10);
+std::normal_distribution<double> security_dist(security_time, 10);
 std::normal_distribution<double> precheck_dist(precheck_time, 3);
 
-void init_simulation()
+void init_simulation(airport_t &airport, person_t next_person)
 {
 	// Resize the vectors to the number of queues needed for each type of queue
 	airport.check_in.resize(num_queue);
@@ -121,7 +124,7 @@ void remove_and_update(queue_t *q, std::normal_distribution<double> dist)
 	omp_unset_lock(&q->writelock);
 }
 
-void security_handler(person_t p)
+void security_handler(person_t p, airport_t &airport)
 {
 	double p_queue = uniform_dist(gen);
 	int next_queue = queue_generator(gen);
@@ -139,7 +142,7 @@ void security_handler(person_t p)
 	}
 }
 
-void step(person_t p)
+void step(person_t p, airport_t &airport)
 {
 	switch (p.queue_id)
 	{
@@ -160,20 +163,20 @@ void step(person_t p)
 		}
 		else
 		{
-			security_handler(p);
+			security_handler(p, airport);
 		}
 		break;
 	}
 	case 1:
 	{
 		remove_and_update(airport.check_in[p.queue_line], check_in_dist);
-		security_handler(p);
+		security_handler(p, airport);
 		break;
 	}
 	case 2:
 	{
 		remove_and_update(airport.bag_check[p.queue_line], bag_check_dist);
-		security_handler(p);
+		security_handler(p, airport);
 		break;
 	}
 	case 3:
@@ -189,41 +192,37 @@ void step(person_t p)
 	}
 }
 
-void simulate_one_step(double *time)
+void simulate_one_step(double &current_time, airport_t &airport, person_t &next_person)
 {
-#pragma omp master
+	// Handle the next person arrival
 	{
-		double next_person_time = next_person.current_time + entry_dist(gen);
-		step(next_person);
+		double next_person_time = current_time + entry_dist(gen);
+		step(next_person, airport);
 		next_person = person_t(next_person_time, next_person_time, 0, 0);
 	}
-#pragma omp for collapse(2)
-	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+
+	// Process queues
+	for (int n = 0; n < num_queue; ++n)
 	{
-		for (int n = 0; n < num_queue; ++n)
+		for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 		{
 			queue_t *q = queue[n];
-			if (q->processing_count == q->processing_heads)
+			if (q->processing_count == q->processing_heads && !q->processing_queue.empty())
 			{
 				person_t p = q->processing_queue.top();
-				step(p);
+				step(p, airport);
 			}
 		}
 	}
 
-	// #pragma omp barrier
-
-#pragma omp master
-	for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
+	// Update current time
+	for (int n = 0; n < num_queue; ++n)
 	{
-		for (int n = 0; n < num_queue; ++n)
+		for (auto queue : {airport.check_in, airport.bag_check, airport.security, airport.security_precheck})
 		{
-			if (queue[n]->processing_count > 0)
+			if (queue[n]->processing_count > 0 && !queue[n]->processing_queue.empty())
 			{
-				if (queue[n]->processing_queue.top().current_time > *time)
-				{
-					*time = queue[n]->processing_queue.top().current_time;
-				}
+				current_time = std::max(current_time, queue[n]->processing_queue.top().current_time);
 			}
 		}
 	}
@@ -234,13 +233,17 @@ void run_monte_carlo(int sim_count, int end)
 #pragma omp for
 	for (int i = 0; i < sim_count; ++i)
 	{
-		double current_time_val = 0;
-		double *current_time = &current_time_val;
-		init_simulation();
+		person_t next_person(0, 0, 0, 0);
+		airport_t private_airport;
 
-		while (*current_time < end)
+		// Initialize the private airport for each thread
+		init_simulation(private_airport, next_person);
+
+		double current_time = 0;
+
+		while (current_time < end)
 		{
-			simulate_one_step(current_time);
+			simulate_one_step(current_time, private_airport, next_person);
 		}
 	}
 }
